@@ -26,7 +26,9 @@ type SessionState = {
   user: User | null;
   busy: boolean;
   error: string;
-  signInAsGuest: (name: string) => Promise<boolean>;
+  // Returns the new session token, so a caller can use it at once
+  // instead of waiting for the next render.
+  signInAsGuest: (name: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -69,7 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const trimmed = name.trim();
     if (!trimmed) {
       setError("Enter a name so the table knows who you are.");
-      return false;
+      return null;
     }
     setBusy(true);
     setError("");
@@ -78,14 +80,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(TOKEN_KEY, session.token);
       setToken(session.token);
       setUser(session.user);
-      return true;
+      return session.token;
     } catch (e) {
       setError(
         e instanceof ApiError
           ? e.message
           : "Could not reach CardPlay. Try again.",
       );
-      return false;
+      return null;
     } finally {
       setBusy(false);
     }

@@ -6,6 +6,7 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { InviteLinks } from "../src/deep-links";
 import { LiveProvider } from "../src/live";
 import { SessionProvider } from "../src/session";
 import { colour } from "../src/theme";
@@ -20,6 +21,7 @@ export default function RootLayout() {
       <SessionProvider>
         <LiveProvider>
           <StatusBar style="light" />
+          <InviteLinks />
           <Stack
             screenOptions={{
               headerShown: false,

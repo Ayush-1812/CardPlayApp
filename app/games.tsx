@@ -45,6 +45,18 @@ export default function Games() {
         showsVerticalScrollIndicator={false}
       >
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {/* Most people arrive by tapping a link, but somebody always ends
+            up reading a code out instead. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Join a game with a link or a code"
+          onPress={() => router.push("/join")}
+          style={({ pressed }) => [styles.joinRow, pressed && styles.pressed]}
+        >
+          <Text style={styles.joinLabel}>Been sent a link or a code?</Text>
+          <Text style={styles.joinGo}>Join a game →</Text>
+        </Pressable>
         {GAMES.map((game) => (
           <View key={game.id} style={styles.tile}>
             <View style={styles.tileHead}>
@@ -90,6 +102,16 @@ export default function Games() {
 
 const styles = StyleSheet.create({
   list: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
+  joinRow: {
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colour.line,
+    backgroundColor: colour.panel,
+    gap: 2,
+  },
+  joinLabel: { ...text.small, color: colour.creamSoft },
+  joinGo: { ...text.label, color: colour.accent },
   error: { ...text.small, color: colour.dangerInk },
   tile: {
     backgroundColor: colour.panelSolid,
