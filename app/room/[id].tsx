@@ -6,7 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -15,13 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  createInvitation,
-  roomView,
-  setReady,
-  startMatch,
-  type RoomView,
-} from "../../src/api";
+import { createInvitation, setReady, startMatch } from "../../src/api";
 import { Button, PrimaryButton } from "../../src/components/button";
 import { Screen } from "../../src/components/screen";
 import { gameByID } from "../../src/games";
@@ -32,6 +26,8 @@ import {
   roomCode,
   whatsappURL,
 } from "../../src/invite";
+import { useLive } from "../../src/live";
+import { CONNECTION_WORDS } from "../../src/realtime";
 import { useSession } from "../../src/session";
 import { colour, radius, space, TOUCH, type as text } from "../../src/theme";
 
@@ -39,50 +35,38 @@ export default function Room() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token, user } = useSession();
   const router = useRouter();
-  const [view, setView] = useState<RoomView | null>(null);
+  const { connection, room: view, watch, refreshRoom } = useLive();
   const [invite, setInvite] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
-  const alive = useRef(true);
 
-  // The lobby is a waiting room: it refreshes itself so nobody has to pull
-  // down to find out that their friend arrived.
-  const refresh = useCallback(async () => {
-    if (!token || !id) return;
-    try {
-      const next = await roomView(token, id);
-      if (alive.current) setView(next);
-    } catch (e) {
-      if (alive.current)
-        setError(e instanceof Error ? e.message : "Lost the room.");
-    }
-  }, [token, id]);
-
+  // The socket follows the room. It is held above this screen, so walking
+  // into a game and back out again does not rebuild it.
   useEffect(() => {
-    alive.current = true;
-    void refresh();
-    const timer = setInterval(() => void refresh(), 2000);
-    return () => {
-      alive.current = false;
-      clearInterval(timer);
-    };
-  }, [refresh]);
+    if (!id) return;
+    watch({ roomID: id });
+    void refreshRoom();
+  }, [id, watch, refreshRoom]);
 
-  // One invitation per room visit is enough: the same link works until the
-  // room fills or the host makes a new one.
+  // One invitation per visit is enough: the same link works until the room
+  // fills.
   useEffect(() => {
     if (!token || !id || invite) return;
+    let alive = true;
     void (async () => {
       try {
         const made = await createInvitation(token, id);
-        if (alive.current) setInvite(made.token);
+        if (alive) setInvite(made.token);
       } catch {
-        // Not fatal: the room still works, there is just nothing to share
+        // Not fatal. The room still works; there is just nothing to share
         // until this succeeds on a later pass.
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, [token, id, invite]);
 
   useEffect(() => {
@@ -96,12 +80,14 @@ export default function Room() {
       router.replace(`/table/${match.id}`);
   }, [view?.match, router]);
 
-  if (!view)
+  if (!view || view.room.id !== id)
     return (
       <Screen title="Room">
         <View style={styles.loading}>
           <ActivityIndicator color={colour.accent} />
-          <Text style={styles.note}>{error || "Finding your seat…"}</Text>
+          <Text style={styles.note}>
+            {error || CONNECTION_WORDS[connection]}
+          </Text>
         </View>
       </Screen>
     );
@@ -109,8 +95,8 @@ export default function Room() {
   const game = gameByID(view.room.game_id);
   const me = view.members.find((m) => m.id === user?.id);
   const isHost = view.room.host_id === user?.id;
-  const everyoneReady =
-    view.members.length >= 2 && view.members.every((m) => m.ready);
+  const notReadyCount = view.members.filter((m) => !m.ready).length;
+  const everyoneReady = view.members.length >= 2 && notReadyCount === 0;
   const link = invite ? inviteLink(invite) : "";
   const code = invite ? roomCode(invite) : "……";
   const message = inviteMessage({
@@ -144,9 +130,10 @@ export default function Room() {
   async function toggleReady() {
     if (!token || !id || !me) return;
     setBusy(true);
+    setError("");
     try {
       await setReady(token, id, !me.ready);
-      await refresh();
+      await refreshRoom();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not change that.");
     } finally {
@@ -157,6 +144,7 @@ export default function Room() {
   async function start() {
     if (!token || !id) return;
     setBusy(true);
+    setError("");
     try {
       const started = await startMatch(token, id);
       router.replace(`/table/${started.match_id}`);
@@ -171,6 +159,17 @@ export default function Room() {
     <Screen
       title={view.room.name}
       subtitle={`${game?.name ?? "Card game"} · ${view.members.length} of ${view.room.capacity} seats`}
+      action={
+        <View
+          style={[styles.chip, connection === "live" && styles.chipLive]}
+          accessibilityLabel={CONNECTION_WORDS[connection]}
+        >
+          <View style={[styles.pip, connection === "live" && styles.pipLive]} />
+          <Text style={styles.chipText} numberOfLines={1}>
+            {connection === "live" ? "Live" : CONNECTION_WORDS[connection]}
+          </Text>
+        </View>
+      }
     >
       <ScrollView
         contentContainerStyle={styles.body}
@@ -182,7 +181,10 @@ export default function Room() {
           <Text style={styles.cardTitle}>Invite your group</Text>
           <View style={styles.codeRow}>
             <Text style={styles.codeLabel}>Room code</Text>
-            <Text style={styles.code} accessibilityLabel={`Room code ${code.split("").join(" ")}`}>
+            <Text
+              style={styles.code}
+              accessibilityLabel={`Room code ${code.split("").join(" ")}`}
+            >
               {code}
             </Text>
           </View>
@@ -235,7 +237,10 @@ export default function Room() {
                 </Text>
               </View>
               <Text
-                style={[styles.state, member.ready ? styles.ready : styles.waiting]}
+                style={[
+                  styles.state,
+                  member.ready ? styles.ready : styles.notReady,
+                ]}
               >
                 {member.ready ? "Ready" : "Not ready"}
               </Text>
@@ -250,6 +255,13 @@ export default function Room() {
             </View>
           ))}
         </View>
+
+        {game ? (
+          <Button
+            label={`How to play ${game.name}`}
+            onPress={() => router.push(`/learn/${game.id}`)}
+          />
+        ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
@@ -268,7 +280,9 @@ export default function Room() {
             label={
               everyoneReady
                 ? "Start the game"
-                : `Waiting for ${view.members.filter((m) => !m.ready).length || "players"}`
+                : view.members.length < 2
+                  ? "Waiting for players"
+                  : `Waiting for ${notReadyCount} player${notReadyCount === 1 ? "" : "s"}`
             }
             onPress={() => void start()}
             disabled={busy || !everyoneReady}
@@ -286,7 +300,12 @@ export default function Room() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.md,
+  },
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xl },
   card: {
     backgroundColor: colour.panelSolid,
@@ -296,7 +315,12 @@ const styles = StyleSheet.create({
     padding: space.lg,
     gap: space.md,
   },
-  cardTitle: { ...text.label, color: colour.creamSoft, textTransform: "uppercase", letterSpacing: 1 },
+  cardTitle: {
+    ...text.label,
+    color: colour.creamSoft,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
   codeRow: { flexDirection: "row", alignItems: "baseline", gap: space.md },
   codeLabel: { ...text.small, color: colour.creamSoft },
   code: {
@@ -309,7 +333,31 @@ const styles = StyleSheet.create({
   grow: { flexGrow: 1, flexBasis: 140 },
   note: { ...text.small, color: colour.creamSoft, lineHeight: 17 },
   error: { ...text.small, color: colour.dangerInk },
-  seat: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: TOUCH },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: space.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colour.panel,
+    maxWidth: 150,
+  },
+  chipLive: { backgroundColor: "rgba(79,157,105,0.18)" },
+  chipText: { ...text.small, color: colour.creamSoft },
+  pip: {
+    width: 7,
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colour.creamSoft,
+  },
+  pipLive: { backgroundColor: colour.good },
+  seat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    minHeight: TOUCH,
+  },
   empty: { opacity: 0.45 },
   avatar: {
     width: 36,
@@ -327,7 +375,7 @@ const styles = StyleSheet.create({
   seatEmpty: { ...text.body, color: colour.creamSoft, flex: 1 },
   state: { ...text.small, fontWeight: "700" },
   ready: { color: colour.good },
-  waiting: { color: colour.creamSoft },
+  notReady: { color: colour.creamSoft },
   footer: {
     padding: space.lg,
     gap: space.sm,

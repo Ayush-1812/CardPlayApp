@@ -6,8 +6,9 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { colour } from "../src/theme";
+import { LiveProvider } from "../src/live";
 import { SessionProvider } from "../src/session";
+import { colour } from "../src/theme";
 
 // Deep links into a room should still have somewhere to go back to, so
 // the games list is the anchor of the stack.
@@ -17,14 +18,16 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SessionProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colour.feltDark },
-            animation: "slide_from_right",
-          }}
-        />
+        <LiveProvider>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colour.feltDark },
+              animation: "slide_from_right",
+            }}
+          />
+        </LiveProvider>
       </SessionProvider>
     </SafeAreaProvider>
   );
