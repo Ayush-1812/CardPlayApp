@@ -6,6 +6,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  BackHandler,
   Pressable,
   StyleSheet,
   Text,
@@ -49,10 +51,40 @@ export default function Table() {
   const live = connection === "live";
   const game = gameByID(match?.game_id);
 
-  function leave() {
+  const leave = useCallback(() => {
     if (room?.room.id) router.replace(`/room/${room.room.id}`);
     else router.replace("/games");
-  }
+  }, [room?.room.id, router]);
+
+  // Leaving mid-game is allowed -- the seat is kept and the hand is still
+  // there when you come back -- but it should never happen by accident,
+  // and on Android the back gesture is easy to catch with a thumb.
+  const confirmLeave = useCallback(() => {
+    if (!match || match.status !== "playing") {
+      leave();
+      return;
+    }
+    Alert.alert(
+      "Leave the table?",
+      "The others carry on. Your seat and your hand are kept, so you can come straight back.",
+      [
+        { text: "Stay", style: "cancel" },
+        { text: "Leave", style: "destructive", onPress: leave },
+      ],
+    );
+  }, [match, leave]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (!match || match.status !== "playing") return false;
+        confirmLeave();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [match, confirmLeave]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -62,7 +94,7 @@ export default function Table() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Leave the table"
-          onPress={leave}
+          onPress={confirmLeave}
           hitSlop={8}
           style={({ pressed }) => [styles.leave, pressed && styles.pressed]}
         >
@@ -105,7 +137,7 @@ export default function Table() {
           </Text>
           {/* The room is still there, with everyone in it. Another game
               starts from the same seats. */}
-          <Button label="Back to the room" onPress={leave} full={false} />
+          <Button label="Back to the room" onPress={confirmLeave} full={false} />
         </View>
       ) : match.game_id === "trump" ? (
         <TrumpTable match={match} send={send} />
