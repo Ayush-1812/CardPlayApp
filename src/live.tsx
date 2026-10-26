@@ -37,10 +37,23 @@ export type MatchState = {
   // When this arrived here, so a countdown can run against our own clock
   // rather than trusting the phone's idea of the time.
   received_at: number;
-  seats?: { user_id: string; seat: number; display_name?: string }[];
+  participants: Participant[];
   view?: unknown;
   deadline?: string | null;
   winner_id?: string | null;
+  end_reason?: string;
+  can_vote_abandon?: boolean;
+};
+
+// Who is at the table, as the match envelope lists them.
+export type Participant = {
+  user_id: string;
+  seat: number;
+  handle: string;
+  display_name: string;
+  connected: boolean;
+  absent_since?: string;
+  abandon_vote: boolean;
 };
 
 type LiveValue = {
