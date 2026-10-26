@@ -16,6 +16,7 @@ import { Button } from "../../src/components/button";
 import { gameByID } from "../../src/games";
 import { commandError, useLive } from "../../src/live";
 import { CONNECTION_WORDS } from "../../src/realtime";
+import { BluffTable } from "../../src/tables/bluff";
 import { TrumpTable } from "../../src/tables/trump";
 import { colour, radius, space, TOUCH, type as text } from "../../src/theme";
 
@@ -108,6 +109,8 @@ export default function Table() {
         </View>
       ) : match.game_id === "trump" ? (
         <TrumpTable match={match} send={send} />
+      ) : match.game_id === "bluff" ? (
+        <BluffTable match={match} send={send} />
       ) : (
         <View style={styles.middle}>
           <Text style={styles.over}>{game?.name ?? "This game"}</Text>
