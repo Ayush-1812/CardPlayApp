@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { createInvitation, setReady, startMatch } from "../../src/api";
 import { Button, PrimaryButton } from "../../src/components/button";
+import { ChatButton, ChatSheet, useChat } from "../../src/components/chat";
 import { Screen } from "../../src/components/screen";
 import { gameByID } from "../../src/games";
 import {
@@ -41,6 +42,8 @@ export default function Room() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const chat = useChat(view?.room.id, chatOpen);
 
   // The socket follows the room. It is held above this screen, so walking
   // into a game and back out again does not rebuild it.
@@ -160,14 +163,19 @@ export default function Room() {
       title={view.room.name}
       subtitle={`${game?.name ?? "Card game"} · ${view.members.length} of ${view.room.capacity} seats`}
       action={
-        <View
-          style={[styles.chip, connection === "live" && styles.chipLive]}
-          accessibilityLabel={CONNECTION_WORDS[connection]}
-        >
-          <View style={[styles.pip, connection === "live" && styles.pipLive]} />
-          <Text style={styles.chipText} numberOfLines={1}>
-            {connection === "live" ? "Live" : CONNECTION_WORDS[connection]}
-          </Text>
+        <View style={styles.actions}>
+          <ChatButton unread={chat.unread} onPress={() => setChatOpen(true)} />
+          <View
+            style={[styles.chip, connection === "live" && styles.chipLive]}
+            accessibilityLabel={CONNECTION_WORDS[connection]}
+          >
+            <View
+              style={[styles.pip, connection === "live" && styles.pipLive]}
+            />
+            <Text style={styles.chipText} numberOfLines={1}>
+              {connection === "live" ? "Live" : CONNECTION_WORDS[connection]}
+            </Text>
+          </View>
         </View>
       }
     >
@@ -295,6 +303,14 @@ export default function Room() {
           </Text>
         )}
       </View>
+      <ChatSheet
+        roomID={view.room.id}
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        messages={chat.messages}
+        loading={chat.loading}
+        reload={chat.reload}
+      />
     </Screen>
   );
 }
@@ -333,6 +349,7 @@ const styles = StyleSheet.create({
   grow: { flexGrow: 1, flexBasis: 140 },
   note: { ...text.small, color: colour.creamSoft, lineHeight: 17 },
   error: { ...text.small, color: colour.dangerInk },
+  actions: { flexDirection: "row", alignItems: "center", gap: space.xs },
   chip: {
     flexDirection: "row",
     alignItems: "center",

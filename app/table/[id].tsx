@@ -3,7 +3,7 @@
 // connection is alive, send commands, and get out of the way.
 
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,17 +15,21 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../src/components/button";
+import { ChatButton, ChatSheet, useChat } from "../../src/components/chat";
 import { gameByID } from "../../src/games";
 import { commandError, useLive } from "../../src/live";
 import { CONNECTION_WORDS } from "../../src/realtime";
 import { BluffTable } from "../../src/tables/bluff";
 import { TrumpTable } from "../../src/tables/trump";
+import type { TrumpView } from "../../src/trump";
 import { colour, radius, space, TOUCH, type as text } from "../../src/theme";
 
 export default function Table() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { connection, match, room, watch, command } = useLive();
+  const [chatOpen, setChatOpen] = useState(false);
+  const chat = useChat(room?.room.id, chatOpen);
 
   // Watching a match keeps the room subscription alive underneath it, so
   // the chat, the other players' readiness and -- once it is running --
@@ -50,6 +54,18 @@ export default function Table() {
 
   const live = connection === "live";
   const game = gameByID(match?.game_id);
+
+  // Trump shuts the chat while the trump suit is being decided, so that
+  // nobody can hint at what they are holding. Saying so is better than a
+  // box that silently refuses what is typed into it.
+  const trumpStage =
+    match?.game_id === "trump"
+      ? (match.view as TrumpView | undefined)?.public.stage
+      : undefined;
+  const chatClosed =
+    trumpStage === "trump_decision" || trumpStage === "delegated_trump_decision"
+      ? "Chat is closed while the trump suit is chosen, so nobody can hint at what they are holding."
+      : undefined;
 
   const leave = useCallback(() => {
     if (room?.room.id) router.replace(`/room/${room.room.id}`);
@@ -103,6 +119,7 @@ export default function Table() {
         <Text style={styles.game} numberOfLines={1}>
           {game?.name ?? "Table"}
         </Text>
+        <ChatButton unread={chat.unread} onPress={() => setChatOpen(true)} />
         <View style={[styles.chip, live && styles.chipLive]}>
           <View style={[styles.pip, live && styles.pipLive]} />
           <Text style={styles.chipText} numberOfLines={1}>
@@ -153,6 +170,15 @@ export default function Table() {
           <Button label="Back to the room" onPress={leave} full={false} />
         </View>
       )}
+      <ChatSheet
+        roomID={room?.room.id}
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        messages={chat.messages}
+        loading={chat.loading}
+        reload={chat.reload}
+        closed={chatClosed}
+      />
     </SafeAreaView>
   );
 }

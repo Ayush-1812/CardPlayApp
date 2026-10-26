@@ -217,6 +217,42 @@ export function joinWithToken(
   });
 }
 
+export type ChatMessage = {
+  id: number;
+  user_id: string;
+  display_name: string;
+  body: string;
+  created_at: string;
+  client_id: string;
+};
+
+// The chat is read as a tail: everything after the last id already shown.
+export function chatSince(
+  token: string,
+  roomID: string,
+  after: number,
+): Promise<{ items: ChatMessage[] }> {
+  const query = after > 0 ? `?after=${after}` : "";
+  return api<{ items: ChatMessage[] }>(`/rooms/${roomID}/chat${query}`, {
+    token,
+  });
+}
+
+// client_id lets the server recognise a message that was sent twice
+// because a phone lost its answer, not because somebody said it twice.
+export function sendChat(
+  token: string,
+  roomID: string,
+  body: string,
+  clientID: string,
+): Promise<void> {
+  return api<void>(`/rooms/${roomID}/chat`, {
+    method: "POST",
+    body: { body, client_id: clientID },
+    token,
+  });
+}
+
 export function startMatch(
   token: string,
   roomID: string,
