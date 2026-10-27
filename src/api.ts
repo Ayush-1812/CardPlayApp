@@ -185,11 +185,16 @@ export function createRoom(
 export function updateRoom(
   token: string,
   id: string,
-  room: { name: string; capacity: number; decks?: number },
+  room: { name: string; capacity: number; decks?: number; game?: string },
 ): Promise<Room> {
   return api<Room>(`/rooms/${id}`, {
     method: "PATCH",
-    body: { name: room.name, capacity: room.capacity, decks: room.decks },
+    body: {
+      name: room.name,
+      capacity: room.capacity,
+      decks: room.decks,
+      game: room.game,
+    },
     token,
   });
 }

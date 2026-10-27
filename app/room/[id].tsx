@@ -290,9 +290,9 @@ export default function Room() {
 
         {isHost ? (
           <Button
-            label="Room settings"
+            label="Change game or settings"
             onPress={() => setSettingsOpen(true)}
-            accessibilityHint="Name, seats, and how many decks"
+            accessibilityHint="The game, the name, the seats, and how many decks"
           />
         ) : (
           <Text style={styles.note}>
@@ -336,7 +336,6 @@ export default function Room() {
       </View>
       <RoomSettings
         room={view.room}
-        game={game}
         seatsTaken={view.members.length}
         token={token}
         visible={settingsOpen}

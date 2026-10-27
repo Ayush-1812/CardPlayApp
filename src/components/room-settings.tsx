@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { updateRoom, type Room } from "../api";
-import type { GameInfo } from "../games";
+import { GAMES, gameByID, type GameInfo } from "../games";
 import { colour, radius, space, TOUCH, type as text } from "../theme";
 import { Button, PrimaryButton } from "./button";
 
@@ -26,7 +26,6 @@ const MAX_DECKS = 4;
 
 export function RoomSettings({
   room,
-  game,
   seatsTaken,
   token,
   visible,
@@ -34,7 +33,6 @@ export function RoomSettings({
   onSaved,
 }: {
   room: Room;
-  game: GameInfo | undefined;
   seatsTaken: number;
   token: string | null;
   visible: boolean;
@@ -42,15 +40,26 @@ export function RoomSettings({
   onSaved: () => void;
 }) {
   const [name, setName] = useState(room.name);
+  const [gameID, setGameID] = useState(room.game_id);
   const [capacity, setCapacity] = useState(room.capacity);
   const [decks, setDecks] = useState(room.deck_count || 1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const game = gameByID(gameID);
 
   // A seat cannot be taken away from somebody already sitting in it, and
   // the game's own limits bound the rest.
   const floor = Math.max(game?.min ?? 2, seatsTaken);
   const ceiling = game?.max ?? 6;
+
+  // Changing the game moves the seat count into whatever the new game
+  // accepts, so the host never has to work out that Trump is four.
+  function chooseGame(next: GameInfo) {
+    setGameID(next.id);
+    setCapacity((was) =>
+      Math.min(next.max, Math.max(next.min, Math.max(was, seatsTaken))),
+    );
+  }
 
   async function save() {
     if (!token) return;
@@ -61,6 +70,7 @@ export function RoomSettings({
         name: name.trim() || room.name,
         capacity,
         decks: game?.decks ? decks : undefined,
+        game: gameID === room.game_id ? undefined : gameID,
       });
       onSaved();
       onClose();
@@ -77,6 +87,42 @@ export function RoomSettings({
       <View style={styles.wrap}>
         <View style={styles.sheet}>
           <Text style={styles.title}>Room settings</Text>
+
+          {/* Changing the game keeps the room: the same people, the same
+              seats, the same call. */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Game</Text>
+            <View style={styles.games}>
+              {GAMES.filter((g) => g.table === "app").map((g) => (
+                <Pressable
+                  key={g.id}
+                  onPress={() => chooseGame(g)}
+                  accessibilityRole="button"
+                  accessibilityLabel={"Play " + g.name}
+                  accessibilityState={{ selected: g.id === gameID }}
+                  style={({ pressed }) => [
+                    styles.game,
+                    g.id === gameID && styles.gameOn,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.gameSuit}>{g.suit}</Text>
+                  <Text style={styles.gameName}>{g.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {gameID === room.game_id ? (
+              <Text style={styles.note}>
+                Nobody has to leave. Changing the game keeps the room, the
+                seats and the call.
+              </Text>
+            ) : (
+              <Text style={styles.note}>
+                Everyone goes back to not ready, so the table agrees before
+                it starts.
+              </Text>
+            )}
+          </View>
 
           <View style={styles.field}>
             <Text style={styles.label}>Name</Text>
@@ -225,6 +271,24 @@ const styles = StyleSheet.create({
     color: colour.cream,
     fontSize: 16,
   },
+  games: { flexDirection: "row", gap: space.sm },
+  game: {
+    flex: 1,
+    minHeight: TOUCH + 8,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colour.line,
+    backgroundColor: colour.panelSolid,
+  },
+  gameOn: {
+    borderColor: colour.accent,
+    backgroundColor: "rgba(239,192,73,0.16)",
+  },
+  gameSuit: { fontSize: 17, color: colour.cream },
+  gameName: { ...text.small, color: colour.cream, fontWeight: "700" },
   stepper: { flexDirection: "row", alignItems: "center", gap: space.lg },
   step: {
     width: TOUCH,
