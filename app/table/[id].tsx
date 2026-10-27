@@ -18,9 +18,12 @@ import { Button } from "../../src/components/button";
 import { ChatButton, ChatSheet, useChat } from "../../src/components/chat";
 import { gameByID } from "../../src/games";
 import { commandError, useLive } from "../../src/live";
+import { useSession } from "../../src/session";
 import { CONNECTION_WORDS } from "../../src/realtime";
 import { BluffTable } from "../../src/tables/bluff";
 import { TrumpTable } from "../../src/tables/trump";
+import { VoiceControl } from "../../src/voice/control";
+import { useVoiceChannel } from "../../src/voice/provider";
 import type { TrumpView } from "../../src/trump";
 import { colour, radius, space, TOUCH, type as text } from "../../src/theme";
 
@@ -28,6 +31,8 @@ export default function Table() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { connection, match, room, watch, command } = useLive();
+  const { user } = useSession();
+  const voice = useVoiceChannel();
   const [chatOpen, setChatOpen] = useState(false);
   const chat = useChat(room?.room.id, chatOpen);
 
@@ -119,6 +124,11 @@ export default function Table() {
         <Text style={styles.game} numberOfLines={1}>
           {game?.name ?? "Table"}
         </Text>
+        <VoiceControl
+          voice={voice}
+          participants={match?.participants}
+          selfID={user?.id}
+        />
         <ChatButton unread={chat.unread} onPress={() => setChatOpen(true)} />
         <View style={[styles.chip, live && styles.chipLive]}>
           <View style={[styles.pip, live && styles.pipLive]} />

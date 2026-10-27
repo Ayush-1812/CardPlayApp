@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { InviteLinks } from "../src/deep-links";
 import { LiveProvider } from "../src/live";
 import { SessionProvider } from "../src/session";
+import { VoiceProvider } from "../src/voice/provider";
 import { colour } from "../src/theme";
 
 // Deep links into a room should still have somewhere to go back to, so
@@ -20,15 +21,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <LiveProvider>
-          <StatusBar style="light" />
-          <InviteLinks />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colour.feltDark },
-              animation: "slide_from_right",
-            }}
-          />
+          <VoiceProvider>
+            <StatusBar style="light" />
+            <InviteLinks />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colour.feltDark },
+                animation: "slide_from_right",
+              }}
+            />
+          </VoiceProvider>
         </LiveProvider>
       </SessionProvider>
     </SafeAreaProvider>

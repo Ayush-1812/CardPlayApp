@@ -30,6 +30,8 @@ import {
 import { useLive } from "../../src/live";
 import { CONNECTION_WORDS } from "../../src/realtime";
 import { useSession } from "../../src/session";
+import { VoiceControl } from "../../src/voice/control";
+import { useVoiceChannel } from "../../src/voice/provider";
 import { colour, radius, space, TOUCH, type as text } from "../../src/theme";
 
 export default function Room() {
@@ -42,6 +44,7 @@ export default function Room() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
+  const voice = useVoiceChannel();
   const [chatOpen, setChatOpen] = useState(false);
   const chat = useChat(view?.room.id, chatOpen);
 
@@ -164,6 +167,18 @@ export default function Room() {
       subtitle={`${game?.name ?? "Card game"} · ${view.members.length} of ${view.room.capacity} seats`}
       action={
         <View style={styles.actions}>
+          <VoiceControl
+            voice={voice}
+            participants={view?.members.map((m) => ({
+              user_id: m.id,
+              seat: m.seat,
+              handle: m.handle,
+              display_name: m.display_name,
+              connected: true,
+              abandon_vote: false,
+            }))}
+            selfID={user?.id}
+          />
           <ChatButton unread={chat.unread} onPress={() => setChatOpen(true)} />
           <View
             style={[styles.chip, connection === "live" && styles.chipLive]}

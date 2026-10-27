@@ -63,6 +63,9 @@ type LiveValue = {
   // Ask the socket to follow a room, a match, or both.
   watch: (next: { roomID?: string; matchID?: string }) => void;
   command: (command: Command) => Promise<Frame>;
+  // Voice signals over the same socket, so it needs to put its own frames
+  // on it. Everything else goes through command().
+  sendFrame: (frame: Omit<Frame, "v">, wait?: boolean) => Promise<Frame>;
   // Voice and chat frames are passed through to whoever is listening, so
   // this provider does not have to know about either.
   listen: (listener: (frame: Frame) => void) => () => void;
@@ -170,14 +173,36 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     return socket.command(id, command);
   }, []);
 
+  const sendFrame = useCallback(
+    async (frame: Omit<Frame, "v">, wait = false) => {
+      const socket = live.current;
+      if (!socket)
+        return {
+          type: "error",
+          payload: { code: "OFFLINE", message: "Not connected." },
+        } as Frame;
+      return socket.send(frame, wait);
+    },
+    [],
+  );
+
   const listen = useCallback((listener: (frame: Frame) => void) => {
     listeners.current.add(listener);
     return () => listeners.current.delete(listener);
   }, []);
 
   const value = useMemo<LiveValue>(
-    () => ({ connection, room, match, watch, command, listen, refreshRoom }),
-    [connection, room, match, watch, command, listen, refreshRoom],
+    () => ({
+      connection,
+      room,
+      match,
+      watch,
+      command,
+      sendFrame,
+      listen,
+      refreshRoom,
+    }),
+    [connection, room, match, watch, command, sendFrame, listen, refreshRoom],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
