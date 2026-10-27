@@ -41,8 +41,11 @@ export default function Table() {
   // the voice channel all carry on between games.
   useEffect(() => {
     if (!id) return;
-    watch({ roomID: room?.room.id, matchID: id });
-  }, [id, room?.room.id, watch]);
+    // A table opened cold -- from a notification, or a restart -- has no
+    // room yet, and the match itself is the only thing that knows which
+    // room it belongs to.
+    watch({ roomID: room?.room.id ?? match?.room_id, matchID: id });
+  }, [id, room?.room.id, match?.room_id, watch]);
 
   const send = useCallback(
     async (kind: string, payload?: unknown): Promise<string | null> => {

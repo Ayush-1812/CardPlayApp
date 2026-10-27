@@ -36,6 +36,9 @@ export function useChat(roomID: string | undefined, open: boolean) {
   const [unread, setUnread] = useState(0);
   const after = useRef(0);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
+  // What was already on screen when this room was opened. Everything in
+  // the log before that is history, not something somebody missed.
+  const lastSeen = useRef<number | null>(null);
 
   const load = useCallback(
     (full: boolean) => {
@@ -64,7 +67,9 @@ export function useChat(roomID: string | undefined, open: boolean) {
   useEffect(() => {
     if (!roomID) return;
     after.current = 0;
+    lastSeen.current = null;
     setMessages([]);
+    setUnread(0);
     setLoading(true);
     void load(true).finally(() => setLoading(false));
   }, [roomID, load]);
@@ -78,20 +83,23 @@ export function useChat(roomID: string | undefined, open: boolean) {
     });
   }, [listen, load]);
 
-  // Anything that arrives while the sheet is shut is unread; opening it
-  // clears the count.
+  // Anything that arrives while the sheet is shut is unread. The first
+  // load sets the mark rather than counting as unread, so walking into a
+  // room with a long history does not look like twenty missed messages.
   useEffect(() => {
-    if (open) setUnread(0);
-  }, [open, messages.length]);
-  const lastSeen = useRef(0);
-  useEffect(() => {
-    if (open) {
+    if (lastSeen.current === null) {
+      if (loading) return;
       lastSeen.current = messages.length;
+      setUnread(0);
       return;
     }
-    const fresh = messages.length - lastSeen.current;
-    if (fresh > 0) setUnread(fresh);
-  }, [messages.length, open]);
+    if (open) {
+      lastSeen.current = messages.length;
+      setUnread(0);
+      return;
+    }
+    setUnread(Math.max(0, messages.length - lastSeen.current));
+  }, [messages.length, open, loading]);
 
   return { messages, loading, unread, reload: load };
 }
