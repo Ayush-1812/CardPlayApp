@@ -179,6 +179,21 @@ export function createRoom(
   return api<Room>("/rooms", { method: "POST", body: room, token });
 }
 
+// Only the host may change these, and only while the room is waiting.
+// Leaving decks out keeps whatever the room already has, so renaming a
+// room cannot quietly reset it.
+export function updateRoom(
+  token: string,
+  id: string,
+  room: { name: string; capacity: number; decks?: number },
+): Promise<Room> {
+  return api<Room>(`/rooms/${id}`, {
+    method: "PATCH",
+    body: { name: room.name, capacity: room.capacity, decks: room.decks },
+    token,
+  });
+}
+
 export function roomView(token: string, id: string): Promise<RoomView> {
   return api<RoomView>(`/rooms/${id}`, { token });
 }

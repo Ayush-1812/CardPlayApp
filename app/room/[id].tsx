@@ -18,6 +18,7 @@ import {
 import { createInvitation, setReady, startMatch } from "../../src/api";
 import { Button, PrimaryButton } from "../../src/components/button";
 import { ChatButton, ChatSheet, useChat } from "../../src/components/chat";
+import { RoomSettings } from "../../src/components/room-settings";
 import { Screen } from "../../src/components/screen";
 import { gameByID } from "../../src/games";
 import {
@@ -46,6 +47,7 @@ export default function Room() {
   const [hasWhatsApp, setHasWhatsApp] = useState(false);
   const voice = useVoiceChannel();
   const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const chat = useChat(view?.room.id, chatOpen);
 
   // The socket follows the room. It is held above this screen, so walking
@@ -286,6 +288,20 @@ export default function Room() {
           />
         ) : null}
 
+        {isHost ? (
+          <Button
+            label="Room settings"
+            onPress={() => setSettingsOpen(true)}
+            accessibilityHint="Name, seats, and how many decks"
+          />
+        ) : (
+          <Text style={styles.note}>
+            {game?.decks && view.room.deck_count > 1
+              ? `Playing with ${view.room.deck_count} decks.`
+              : ""}
+          </Text>
+        )}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
@@ -318,6 +334,15 @@ export default function Room() {
           </Text>
         )}
       </View>
+      <RoomSettings
+        room={view.room}
+        game={game}
+        seatsTaken={view.members.length}
+        token={token}
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={() => void refreshRoom()}
+      />
       <ChatSheet
         roomID={view.room.id}
         visible={chatOpen}
