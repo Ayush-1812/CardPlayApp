@@ -1,6 +1,7 @@
 // The way in. One field and one button: a name, and a seat at a table.
 // Signing in with an account comes later; a guest can play straight away.
 
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../src/components/button";
+import { inviteTokenFrom } from "../src/invite";
 import { useSession } from "../src/session";
 import { colour, radius, space, type as text, TOUCH } from "../src/theme";
 
@@ -21,11 +23,16 @@ export default function Entry() {
   const { ready, user, busy, error, signInAsGuest } = useSession();
   const [name, setName] = useState("");
   const router = useRouter();
+  const url = Linking.useURL();
 
-  // Already signed in from last time: go straight to the games.
+  // Already signed in from last time: go straight to the games -- unless
+  // the app was opened by an invite, which is being taken somewhere else
+  // and must not be overtaken by this.
   useEffect(() => {
-    if (ready && user) router.replace("/games");
-  }, [ready, user, router]);
+    if (!ready || !user) return;
+    if (url && inviteTokenFrom(url)) return;
+    router.replace("/games");
+  }, [ready, user, url, router]);
 
   if (!ready)
     return (
