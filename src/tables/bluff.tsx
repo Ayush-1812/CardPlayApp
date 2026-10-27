@@ -10,7 +10,6 @@
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,16 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  ZoomIn,
+} from "react-native-reanimated";
 import {
   cardCode,
   declaration,
@@ -178,7 +187,12 @@ export function BluffTable({
             </Text>
             <View style={styles.revealCards}>
               {pub.result.cards.map((id, i) => (
-                <Card key={`${id}-${i}`} code={cardCode(id)} width={44} />
+                <Animated.View
+                  key={`${id}-${i}`}
+                  entering={FadeInDown.delay(i * 90).duration(220)}
+                >
+                  <Card code={cardCode(id)} width={44} />
+                </Animated.View>
               ))}
             </View>
             <Text style={styles.revealNote}>
@@ -189,9 +203,13 @@ export function BluffTable({
           <View style={styles.claim}>
             <View style={styles.claimCards}>
               {Array.from({ length: Math.min(pub.last.count, 6) }).map((_, i) => (
-                <View key={i} style={i === 0 ? undefined : styles.stacked}>
+                <Animated.View
+                  key={i}
+                  entering={ZoomIn.delay(i * 60).springify().damping(16)}
+                  style={i === 0 ? undefined : styles.stacked}
+                >
                   <Card down width={48} />
-                </View>
+                </Animated.View>
               ))}
             </View>
             <Text style={styles.claimLine}>
@@ -259,8 +277,10 @@ export function BluffTable({
           contentContainerStyle={styles.hand}
         >
           {hand.map((id, index) => (
-            <View
+            <Animated.View
               key={id}
+              layout={LinearTransition.duration(220)}
+              entering={FadeIn.duration(140)}
               style={
                 index === 0
                   ? undefined
@@ -282,7 +302,7 @@ export function BluffTable({
               {deckOf(id) > 1 ? (
                 <Text style={styles.deckMark}>{deckOf(id)}</Text>
               ) : null}
-            </View>
+            </Animated.View>
           ))}
         </ScrollView>
         <View style={styles.playRow}>
@@ -321,27 +341,15 @@ function Window({
   onAccept: () => void;
   onChallenge: () => void;
 }) {
-  const pulse = useRef(new Animated.Value(0)).current;
   // The bar drains rather than the number ticking, because a bar is read
   // without being looked at.
   const span = Math.max(seconds, 0);
+  const pulse = useSharedValue(0.55);
   useEffect(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
+    pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
   }, [pulse]);
+  const clock = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
   return (
     <View style={styles.window}>
@@ -349,12 +357,7 @@ function Window({
         <Text style={styles.windowText} numberOfLines={2}>
           {who} played {claim?.count ?? 0} {claim?.rank_name ?? "cards"}
         </Text>
-        <Animated.Text
-          style={[
-            styles.windowClock,
-            { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }) },
-          ]}
-        >
+        <Animated.Text style={[styles.windowClock, clock]}>
           {span}s
         </Animated.Text>
       </View>

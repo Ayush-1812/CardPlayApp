@@ -11,6 +11,10 @@ export type GameInfo = {
   blurb: string;
   // The first thing the tutorial says.
   goal: string;
+  // Whether this app can draw the table. The server may well run the
+  // game -- Monopoly Deal does -- but a tile must not promise a table
+  // that is not here yet.
+  table?: "app" | "website" | "soon";
   seats: number;
   // What the server will accept as a capacity for this game.
   min: number;
@@ -30,6 +34,7 @@ export const GAMES: GameInfo[] = [
     players: "4 players, two teams",
     blurb: "Pick a trump suit with your partner. First team to seven tricks.",
     goal: "Win 7 of the 13 tricks with the player sitting opposite you.",
+    table: "app",
     seats: 4,
     min: 4,
     max: 4,
@@ -43,6 +48,7 @@ export const GAMES: GameInfo[] = [
     players: "3 to 6 players",
     blurb: "Play to the called rank — or pretend to. Get caught and take the pile.",
     goal: "Be the first with no cards left, and get away with your last play.",
+    table: "app",
     seats: 4,
     min: 3,
     max: 6,
@@ -56,6 +62,7 @@ export const GAMES: GameInfo[] = [
     players: "2 to 5 players",
     blurb: "Collect three full property sets. Steal, charge rent, say no.",
     goal: "Put down three complete property sets, each a different colour.",
+    table: "website",
     seats: 4,
     min: 2,
     max: 5,
@@ -69,6 +76,7 @@ export const GAMES: GameInfo[] = [
     players: "2 to 6 players",
     blurb: "Memory and nerve: swap your way to the lowest hand.",
     goal: "Finish with the lowest total in front of you.",
+    table: "soon",
     seats: 4,
     min: 2,
     max: 6,

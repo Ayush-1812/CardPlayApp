@@ -66,7 +66,11 @@ export default function Games() {
             <Text style={styles.blurb}>{game.blurb}</Text>
             <Text style={styles.players}>
               {game.players}
-              {game.playable ? "" : " · coming soon"}
+              {game.table === "soon"
+                ? " · coming soon"
+                : game.table === "website"
+                  ? " · on the website for now"
+                  : ""}
             </Text>
             <View style={styles.actions}>
               <Pressable
@@ -80,11 +84,11 @@ export default function Games() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Start a ${game.name} room`}
-                disabled={!game.playable || busy !== null}
+                disabled={game.table !== "app" || busy !== null}
                 onPress={() => void newRoom(game)}
                 style={({ pressed }) => [
                   styles.go,
-                  !game.playable && styles.off,
+                  game.table !== "app" && styles.off,
                   pressed && styles.pressed,
                 ]}
               >

@@ -7,9 +7,8 @@
 // is one tap away rather than permanently in the way.
 
 import * as Haptics from "expo-haptics";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  ZoomIn,
+} from "react-native-reanimated";
 import { Button } from "../components/button";
 import { Card, fanWidth } from "../components/card";
 import type { MatchState } from "../live";
@@ -215,10 +221,12 @@ export function TrumpTable({
         </View>
         <View style={styles.mine}>
           {playedBy(ring.bottom) ? (
-            <Card
-              code={cardCode(playedBy(ring.bottom)!)}
-              width={Math.min(60, Math.round(width * 0.15))}
-            />
+            <Animated.View entering={ZoomIn.springify().damping(18)}>
+              <Card
+                code={cardCode(playedBy(ring.bottom)!)}
+                width={Math.min(60, Math.round(width * 0.15))}
+              />
+            </Animated.View>
           ) : null}
         </View>
       </View>
@@ -315,8 +323,10 @@ export function TrumpTable({
           {hand.map((id, index) => {
             const legal = self.legal.includes(id);
             return (
-              <View
+              <Animated.View
                 key={id}
+                layout={LinearTransition.duration(motion.normal)}
+                entering={FadeIn.duration(motion.quick)}
                 style={
                   index === 0
                     ? undefined
@@ -331,7 +341,7 @@ export function TrumpTable({
                   reason={whyIllegal(id, pub, self, myTurn) ?? undefined}
                   style={legal && myTurn ? styles.playable : styles.unplayable}
                 />
-              </View>
+              </Animated.View>
             );
           })}
         </ScrollView>
@@ -367,7 +377,9 @@ function Seat({
         {cards} card{cards === 1 ? "" : "s"}
       </Text>
       {card ? (
-        <Card code={cardCode(card)} width={width} />
+        <Animated.View entering={ZoomIn.springify().damping(18)}>
+          <Card code={cardCode(card)} width={width} />
+        </Animated.View>
       ) : (
         <View style={[styles.empty, { width, height: Math.round(width * 1.45) }]} />
       )}
@@ -377,16 +389,12 @@ function Seat({
 
 // A reason that arrives, is read, and leaves.
 function Notice({ text: message }: { text: string }) {
-  const fade = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fade, {
-      toValue: 1,
-      duration: motion.quick,
-      useNativeDriver: true,
-    }).start();
-  }, [fade]);
   return (
-    <Animated.View style={[styles.notice, { opacity: fade }]}>
+    <Animated.View
+      entering={FadeInDown.duration(motion.quick)}
+      exiting={FadeOut.duration(motion.quick)}
+      style={styles.notice}
+    >
       <Text style={styles.noticeText} accessibilityLiveRegion="polite">
         {message}
       </Text>
